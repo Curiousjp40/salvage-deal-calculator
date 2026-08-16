@@ -2,7 +2,7 @@ import { useState } from 'react';
 import VehicleSelector, { TRIMS } from '../components/VehicleSelector';
 import DesirabilityBadge from '../components/DesirabilityBadge';
 import ResultCard from '../components/ResultCard';
-import { segmentFor } from '../data/vehicles';
+import { segmentFor, hybridPremiumFor } from '../data/vehicles';
 import { estimateCleanValue } from '../lib/calculations';
 
 const currentYear = new Date().getFullYear();
@@ -19,12 +19,14 @@ export default function ValuePage() {
 
   const isRealModel = vehicle.make && vehicle.model && vehicle.model !== '__other__';
   const segment = isRealModel ? segmentFor(vehicle.make, vehicle.model) : vehicle.segment;
+  const hybridPremium = isRealModel ? hybridPremiumFor(vehicle.make, vehicle.model) : 1;
 
   const cleanValue = estimateCleanValue({
     segment,
     year: vehicle.year,
     mileage: vehicle.mileage,
     trimMultiplier: TRIMS[vehicle.trim]?.multiplier,
+    hybridPremium,
   });
 
   const rebuiltValue = cleanValue !== null ? Math.round(cleanValue * 0.75) : null;
@@ -44,8 +46,13 @@ export default function ValuePage() {
       </div>
 
       {isRealModel && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
           <DesirabilityBadge make={vehicle.make} model={vehicle.model} />
+          {hybridPremium > 1 && (
+            <p className="text-xs text-steel">
+              Hybrid value premium applied (×{hybridPremium.toFixed(2)}).
+            </p>
+          )}
         </div>
       )}
 

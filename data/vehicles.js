@@ -20,6 +20,10 @@ export const SEGMENTS = {
   van: { label: 'Cargo / Passenger Van', baseValue: 42000 },
 };
 
+// Small value premium applied to hybrid-variant entries: hybrids cost more
+// new and tend to hold value slightly better than their gas counterparts.
+export const HYBRID_PREMIUM = 1.08;
+
 export const VEHICLES = [
   // Ford
   { make: 'Ford', model: 'F-150', segment: 'fullsize-truck' },
@@ -27,12 +31,17 @@ export const VEHICLES = [
   { make: 'Ford', model: 'Ranger', segment: 'compact-truck' },
   { make: 'Ford', model: 'Explorer', segment: 'midsize-suv' },
   { make: 'Ford', model: 'Escape', segment: 'compact-suv' },
+  { make: 'Ford', model: 'Escape Hybrid', segment: 'compact-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Ford', model: 'Edge', segment: 'midsize-suv' },
   { make: 'Ford', model: 'Expedition', segment: 'fullsize-suv' },
   { make: 'Ford', model: 'Bronco', segment: 'midsize-suv' },
   { make: 'Ford', model: 'Bronco Sport', segment: 'compact-suv' },
   { make: 'Ford', model: 'Mustang', segment: 'sports-car' },
   { make: 'Ford', model: 'Focus', segment: 'compact-sedan' },
+  { make: 'Ford', model: 'Fusion', segment: 'midsize-sedan' },
+  { make: 'Ford', model: 'Fusion Hybrid', segment: 'midsize-sedan', hybridPremium: HYBRID_PREMIUM },
+  { make: 'Ford', model: 'Maverick', segment: 'compact-truck' },
+  { make: 'Ford', model: 'Maverick Hybrid', segment: 'compact-truck', hybridPremium: HYBRID_PREMIUM },
   { make: 'Ford', model: 'Transit', segment: 'van' },
 
   // Chevrolet
@@ -64,11 +73,14 @@ export const VEHICLES = [
 
   // Toyota
   { make: 'Toyota', model: 'Camry', segment: 'midsize-sedan' },
+  { make: 'Toyota', model: 'Camry Hybrid', segment: 'midsize-sedan', hybridPremium: HYBRID_PREMIUM },
   { make: 'Toyota', model: 'Corolla', segment: 'compact-sedan' },
   { make: 'Toyota', model: 'Yaris', segment: 'economy-car' },
   { make: 'Toyota', model: 'Prius', segment: 'compact-sedan' },
   { make: 'Toyota', model: 'RAV4', segment: 'compact-suv' },
+  { make: 'Toyota', model: 'RAV4 Hybrid', segment: 'compact-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Toyota', model: 'Highlander', segment: 'midsize-suv' },
+  { make: 'Toyota', model: 'Highlander Hybrid', segment: 'midsize-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Toyota', model: '4Runner', segment: 'midsize-suv' },
   { make: 'Toyota', model: 'Land Cruiser', segment: 'fullsize-suv' },
   { make: 'Toyota', model: 'Tacoma', segment: 'compact-truck' },
@@ -79,7 +91,9 @@ export const VEHICLES = [
   { make: 'Honda', model: 'Civic', segment: 'compact-sedan' },
   { make: 'Honda', model: 'Fit', segment: 'economy-car' },
   { make: 'Honda', model: 'Accord', segment: 'midsize-sedan' },
+  { make: 'Honda', model: 'Accord Hybrid', segment: 'midsize-sedan', hybridPremium: HYBRID_PREMIUM },
   { make: 'Honda', model: 'CR-V', segment: 'compact-suv' },
+  { make: 'Honda', model: 'CR-V Hybrid', segment: 'compact-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Honda', model: 'HR-V', segment: 'compact-suv' },
   { make: 'Honda', model: 'Pilot', segment: 'midsize-suv' },
   { make: 'Honda', model: 'Ridgeline', segment: 'compact-truck' },
@@ -122,8 +136,10 @@ export const VEHICLES = [
   { make: 'Hyundai', model: 'Accent', segment: 'economy-car' },
   { make: 'Hyundai', model: 'Elantra', segment: 'compact-sedan' },
   { make: 'Hyundai', model: 'Sonata', segment: 'midsize-sedan' },
+  { make: 'Hyundai', model: 'Sonata Hybrid', segment: 'midsize-sedan', hybridPremium: HYBRID_PREMIUM },
   { make: 'Hyundai', model: 'Venue', segment: 'compact-suv' },
   { make: 'Hyundai', model: 'Tucson', segment: 'compact-suv' },
+  { make: 'Hyundai', model: 'Tucson Hybrid', segment: 'compact-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Hyundai', model: 'Santa Fe', segment: 'midsize-suv' },
   { make: 'Hyundai', model: 'Palisade', segment: 'fullsize-suv' },
   { make: 'Hyundai', model: 'Ioniq 5', segment: 'ev' },
@@ -133,8 +149,10 @@ export const VEHICLES = [
   { make: 'Kia', model: 'Forte', segment: 'compact-sedan' },
   { make: 'Kia', model: 'Optima', segment: 'midsize-sedan' },
   { make: 'Kia', model: 'Soul', segment: 'compact-suv' },
+  { make: 'Kia', model: 'Niro', segment: 'compact-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Kia', model: 'Sportage', segment: 'compact-suv' },
   { make: 'Kia', model: 'Sorento', segment: 'midsize-suv' },
+  { make: 'Kia', model: 'Sorento Hybrid', segment: 'midsize-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Kia', model: 'Telluride', segment: 'fullsize-suv' },
   { make: 'Kia', model: 'EV6', segment: 'ev' },
 
@@ -178,8 +196,10 @@ export const VEHICLES = [
   // Lexus
   { make: 'Lexus', model: 'IS', segment: 'luxury-sedan' },
   { make: 'Lexus', model: 'ES', segment: 'luxury-sedan' },
+  { make: 'Lexus', model: 'ES Hybrid', segment: 'luxury-sedan', hybridPremium: HYBRID_PREMIUM },
   { make: 'Lexus', model: 'NX', segment: 'luxury-suv' },
   { make: 'Lexus', model: 'RX', segment: 'luxury-suv' },
+  { make: 'Lexus', model: 'RX Hybrid', segment: 'luxury-suv', hybridPremium: HYBRID_PREMIUM },
   { make: 'Lexus', model: 'GX', segment: 'luxury-suv' },
 
   // Chrysler
@@ -232,4 +252,9 @@ export function modelsForMake(make) {
 export function segmentFor(make, model) {
   const match = VEHICLES.find((v) => v.make === make && v.model === model);
   return match ? match.segment : null;
+}
+
+export function hybridPremiumFor(make, model) {
+  const match = VEHICLES.find((v) => v.make === make && v.model === model);
+  return match?.hybridPremium || 1;
 }
