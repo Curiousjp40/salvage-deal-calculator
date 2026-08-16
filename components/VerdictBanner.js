@@ -1,4 +1,4 @@
-const TIER_CLASSES = {
+export const TIER_CLASSES = {
   green: 'bg-moss/10 border-moss text-moss',
   teal: 'bg-teal/10 border-teal text-teal',
   amber: 'bg-amber/10 border-amber-600 text-amber-700',

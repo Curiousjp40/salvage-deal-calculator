@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { href: '/deal', label: 'Deal calculator' },
   { href: '/value', label: 'Value estimator' },
   { href: '/damage', label: 'Repair cost' },
+  { href: '/saved', label: 'Saved' },
 ];
 
 export default function Layout({ children }) {

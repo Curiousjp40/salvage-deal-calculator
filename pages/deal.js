@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import VehicleSelector, { TRIMS } from '../components/VehicleSelector';
 import DamageSelector from '../components/DamageSelector';
 import DesirabilityBadge from '../components/DesirabilityBadge';
@@ -7,6 +7,7 @@ import VerdictBanner from '../components/VerdictBanner';
 import { segmentFor, hybridPremiumFor } from '../data/vehicles';
 import { STATE_TAX_RATES } from '../data/stateTax';
 import { estimateCleanValue, estimateRepairCost, computeDeal } from '../lib/calculations';
+import { saveDeal } from '../lib/savedDeals';
 
 const currentYear = new Date().getFullYear();
 
@@ -59,6 +60,12 @@ export default function DealPage() {
   const [lockedMax, setLockedMax] = useState(null);
   const [maxBidInput, setMaxBidInput] = useState('');
   const [liveBid, setLiveBid] = useState('');
+
+  // Save this deal.
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [saveLabel, setSaveLabel] = useState('');
+  const [saveUrl, setSaveUrl] = useState('');
+  const [justSaved, setJustSaved] = useState(false);
 
   const isRealModel = vehicle.make && vehicle.model && vehicle.model !== '__other__';
   const segment = isRealModel ? segmentFor(vehicle.make, vehicle.model) : vehicle.segment;
@@ -114,6 +121,51 @@ export default function DealPage() {
   const liveBidNum = liveBid === '' ? null : Number(liveBid);
   const roomLeft =
     lockedMax !== null && liveBidNum !== null && !Number.isNaN(liveBidNum) ? lockedMax - liveBidNum : null;
+
+  function handleSaveConfirm() {
+    saveDeal({
+      label: saveLabel.trim(),
+      url: saveUrl.trim(),
+      vehicle: {
+        year: vehicle.year,
+        make: vehicle.make,
+        model: vehicle.model,
+        mileage: vehicle.mileage,
+        trim: vehicle.trim,
+      },
+      damageSelections,
+      fees: {
+        bid,
+        auctionFeeAmt,
+        documentationFee,
+        transactionFee,
+        shipping,
+        state,
+        titleFees,
+        rebuiltDiscountPct,
+        targetPct,
+      },
+      result: {
+        totalCost: deal.totalCost,
+        pctOfClean: deal.pctOfClean,
+        suggestedBid: deal.suggestedMaxBid,
+        repairCost,
+        resaleValue: deal.resaleValue,
+        projectedEquity: deal.equity,
+        verdict: deal.verdict,
+      },
+    });
+    setShowSaveForm(false);
+    setSaveLabel('');
+    setSaveUrl('');
+    setJustSaved(true);
+  }
+
+  useEffect(() => {
+    if (!justSaved) return undefined;
+    const timer = setTimeout(() => setJustSaved(false), 2500);
+    return () => clearTimeout(timer);
+  }, [justSaved]);
 
   return (
     <div>
@@ -266,6 +318,59 @@ export default function DealPage() {
         <div className="mt-6">
           <VerdictBanner verdict={deal.verdict} />
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {!showSaveForm && (
+            <button
+              type="button"
+              onClick={() => setShowSaveForm(true)}
+              className="rounded-md border border-steel/30 bg-white px-4 py-2 text-sm font-medium hover:bg-steel/5"
+            >
+              Save this deal
+            </button>
+          )}
+          {justSaved && <span className="text-sm font-medium text-moss">Saved ✓</span>}
+        </div>
+
+        {showSaveForm && (
+          <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-steel/20 bg-white p-4">
+            <div className="w-full sm:w-56">
+              <label className="mb-1 block text-sm font-medium text-steel">
+                Label (e.g. lot # or nickname)
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                value={saveLabel}
+                onChange={(e) => setSaveLabel(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-64">
+              <label className="mb-1 block text-sm font-medium text-steel">Listing URL</label>
+              <input
+                type="url"
+                placeholder="https://…"
+                className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                value={saveUrl}
+                onChange={(e) => setSaveUrl(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveConfirm}
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSaveForm(false)}
+              className="rounded-md px-3 py-2 text-sm font-medium text-steel hover:bg-steel/5"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Bid ceiling lock */}
