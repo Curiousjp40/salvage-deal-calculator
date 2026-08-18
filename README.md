@@ -10,6 +10,10 @@ A small toolkit for sizing up salvage and rebuildable-title vehicle auction list
   against it with a room-left/stop warning.
 - **Value estimator** (`/value`) — a standalone clean-title value estimate from year,
   make/model, mileage, and trim.
+
+Both the deal calculator and the value estimator can **decode a VIN** to fill in year,
+make, and model automatically, via NHTSA's free public vPIC VIN decoder — see
+"VIN decoding" below.
 - **Repair cost** (`/damage`) — a standalone repair-cost rollup across common salvage
   damage categories and severities.
 
@@ -46,6 +50,29 @@ quote, or a guarantee:
 value estimator links out to a KBB search for you), get a real repair estimate from a
 shop, and confirm the auction's fee schedule plus your state/county's actual sales tax
 and rebuilt-title rules — they vary by state and this app doesn't know your county.
+
+## VIN decoding
+
+The "Decode a VIN" box above the vehicle fields (`components/VinDecoder.js`) looks the
+VIN up against [NHTSA's public vPIC API](https://vpic.nhtsa.dot.gov/api/) — free, no key
+required, called directly from the browser. `lib/vinDecoder.js` does the translation
+from NHTSA's response into this app's fields:
+
+- Decoded make/model are matched against our own catalog (case-insensitively, with a
+  loose prefix match for trim-suffixed model text like "F-150 XLT"). A match fills in
+  the normal make/model dropdowns; no match falls back to the "Other / not listed" flow
+  with a segment guessed from NHTSA's body class (and overridden to `ev` when the fuel
+  type is electric).
+- Model year fills in directly (the year dropdown starts at 1990 to cover older
+  VIN-decoded vehicles); a year NHTSA returns outside that range is left for you to set
+  manually, with a note explaining why.
+- Trim, body class, drivetrain, engine, fuel type, and plant country are shown as
+  read-only info — trim in particular isn't mapped onto the base/mid/upper/top
+  multiplier, since a real trim name (e.g. "XLT") doesn't map cleanly onto that scale.
+- Mileage is never touched — it isn't part of a VIN.
+
+A VIN decode is exactly as reliable as NHTSA's data for that vehicle; always sanity
+check the result against the actual listing.
 
 ## Local development
 
