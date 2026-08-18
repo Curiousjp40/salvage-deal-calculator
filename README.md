@@ -66,9 +66,12 @@ from NHTSA's response into this app's fields:
 - Model year fills in directly (the year dropdown starts at 1990 to cover older
   VIN-decoded vehicles); a year NHTSA returns outside that range is left for you to set
   manually, with a note explaining why.
-- Trim, body class, drivetrain, engine, fuel type, and plant country are shown as
-  read-only info — trim in particular isn't mapped onto the base/mid/upper/top
-  multiplier, since a real trim name (e.g. "XLT") doesn't map cleanly onto that scale.
+- The real decoded trim name (e.g. "XLT", "SS", "Limited") is shown as read-only info,
+  and `guessTrimFromText` in `lib/vinDecoder.js` keyword-matches well-known badges onto
+  our base/mid/upper/top multiplier (performance badges like SS/SRT/Type R → top,
+  premium badges like Limited/Platinum/Denali → upper, entry badges like Base/S/SV →
+  base). An ambiguous or unrecognized trim name (XLT, SE, Sport, ...) is left alone
+  rather than guessed, so it keeps whatever the form already had.
 - Mileage is never touched — it isn't part of a VIN.
 
 A VIN decode is exactly as reliable as NHTSA's data for that vehicle; always sanity

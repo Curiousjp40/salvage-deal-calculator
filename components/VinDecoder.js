@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { decodeVin } from '../lib/vinDecoder';
+import { TRIMS } from '../data/trims';
 
 // onDecode receives a partial patch of VehicleSelector's value shape
 // (year/make/model/segment) to merge into the parent's state.
@@ -53,8 +54,8 @@ export default function VinDecoder({ onDecode }) {
         </button>
       </div>
       <p className="mt-1 text-xs text-steel">
-        Looked up via NHTSA&apos;s free public VIN decoder. Fills in year, make, and model below
-        — mileage isn&apos;t part of a VIN, so enter that yourself.
+        Looked up via NHTSA&apos;s free public VIN decoder. Fills in year, make, model, and a
+        best-guess trim level below — mileage isn&apos;t part of a VIN, so enter that yourself.
       </p>
 
       {status === 'error' && <p className="mt-2 text-sm font-medium text-rust">{message}</p>}
@@ -67,9 +68,16 @@ export default function VinDecoder({ onDecode }) {
           {message && <p className="mt-1 text-xs text-amber-700">{message}</p>}
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-steel sm:grid-cols-3">
             {info.trim && (
-              <div>
+              <div className="col-span-2 sm:col-span-3">
                 <dt className="inline font-medium">Trim: </dt>
-                <dd className="inline">{info.trim}</dd>
+                <dd className="inline">
+                  {info.trim}
+                  {info.trimGuess ? (
+                    <span className="text-moss"> — set trim level to {TRIMS[info.trimGuess]?.label}</span>
+                  ) : (
+                    <span> — no confident match, trim level left unchanged</span>
+                  )}
+                </dd>
               </div>
             )}
             {info.bodyClass && (

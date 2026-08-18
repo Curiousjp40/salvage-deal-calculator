@@ -1,12 +1,9 @@
 import { MAKES, SEGMENTS, modelsForMake } from '../data/vehicles';
+import { TRIMS } from '../data/trims';
 import VinDecoder from './VinDecoder';
 
-export const TRIMS = {
-  base: { label: 'Base', multiplier: 0.85 },
-  mid: { label: 'Mid', multiplier: 1.0 },
-  upper: { label: 'Upper', multiplier: 1.15 },
-  top: { label: 'Top / Performance', multiplier: 1.3 },
-};
+// Re-exported for existing callers (pages/deal.js, pages/value.js).
+export { TRIMS };
 
 const OTHER_MAKE = '__other__';
 const currentYear = new Date().getFullYear();
