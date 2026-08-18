@@ -12,6 +12,7 @@ import { saveDeal } from '../lib/savedDeals';
 const currentYear = new Date().getFullYear();
 
 const STATE_LABELS = Object.keys(STATE_TAX_RATES).sort();
+const AUCTION_HOUSES = ['Copart', 'IAAI', 'Other'];
 
 function NumberField({ label, value, onChange, step = 1, min = 0, prefix, suffix, caption }) {
   return (
@@ -47,6 +48,7 @@ export default function DealPage() {
   const [damageSelections, setDamageSelections] = useState({});
 
   const [bid, setBid] = useState(5000);
+  const [auctionHouse, setAuctionHouse] = useState('');
   const [auctionFeeAmt, setAuctionFeeAmt] = useState(450);
   const [documentationFee, setDocumentationFee] = useState(139);
   const [transactionFee, setTransactionFee] = useState(349);
@@ -66,6 +68,10 @@ export default function DealPage() {
   const [saveLabel, setSaveLabel] = useState('');
   const [saveUrl, setSaveUrl] = useState('');
   const [justSaved, setJustSaved] = useState(false);
+
+  // Auction mode: a compact, glanceable view of just the bid ceiling for
+  // use mid-auction, instead of the full form.
+  const [auctionMode, setAuctionMode] = useState(false);
 
   const isRealModel = vehicle.make && vehicle.model && vehicle.model !== '__other__';
   const segment = isRealModel ? segmentFor(vehicle.make, vehicle.model) : vehicle.segment;
@@ -136,6 +142,7 @@ export default function DealPage() {
       damageSelections,
       fees: {
         bid,
+        auctionHouse,
         auctionFeeAmt,
         documentationFee,
         transactionFee,
@@ -167,291 +174,363 @@ export default function DealPage() {
     return () => clearTimeout(timer);
   }, [justSaved]);
 
-  return (
-    <div>
-      <h1 className="font-display text-3xl font-bold">Deal calculator</h1>
-      <p className="mt-2 text-steel">
-        Work through the vehicle, the damage, and the bid to see the full all-in picture.
-      </p>
+  // Shared between the normal "Bid ceiling lock" section and the compact
+  // auction-mode panel below.
+  const bidCeilingLockUI =
+    lockedMax === null ? (
+      <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-steel/20 bg-white p-4">
+        <div className="w-40">
+          <label className="mb-1 block text-sm font-medium text-steel">Max bid to lock</label>
+          <div className="flex items-center rounded-md border border-steel/30 bg-white px-3">
+            <span className="text-steel">$</span>
+            <input
+              type="number"
+              min="0"
+              step="50"
+              className="w-full bg-transparent py-2 outline-none"
+              value={displayedMaxBidInput}
+              onChange={(e) => setMaxBidInput(e.target.value)}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleLock}
+          disabled={!displayedMaxBidInput}
+          className="rounded-md bg-rust px-4 py-2 font-medium text-paper transition-opacity disabled:opacity-40"
+        >
+          Lock this as my max
+        </button>
+      </div>
+    ) : (
+      <div className="sticky top-4 z-20 mt-4 rounded-lg border-4 border-rust bg-rust/10 p-5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="font-display text-2xl font-bold text-rust">
+            Your max: ${lockedMax.toLocaleString()} — do not bid above this
+          </div>
+          <button
+            type="button"
+            onClick={handleUnlock}
+            className="rounded-md border border-rust px-3 py-1.5 text-sm font-medium text-rust hover:bg-rust/10"
+          >
+            Unlock / reset
+          </button>
+        </div>
 
-      {/* 1. Vehicle */}
-      <section className="mt-8">
-        <h2 className="font-display text-xl font-semibold">1. Vehicle</h2>
-        <div className="mt-4 rounded-lg border border-steel/20 bg-white p-6">
-          <VehicleSelector value={vehicle} onChange={setVehicle} />
-
-          <div className="mt-4 max-w-xs">
-            <label className="mb-1 block text-sm font-medium text-steel">
-              Clean value override (optional)
-            </label>
+        <div className="mt-4 flex flex-wrap items-end gap-4">
+          <div className="w-48">
+            <label className="mb-1 block text-sm font-medium text-steel">Current live bid</label>
             <div className="flex items-center rounded-md border border-steel/30 bg-white px-3">
               <span className="text-steel">$</span>
               <input
                 type="number"
                 min="0"
-                step="500"
-                placeholder={autoCleanValue !== null ? String(autoCleanValue) : ''}
+                step="50"
+                placeholder="0"
                 className="w-full bg-transparent py-2 outline-none"
-                value={cleanValueOverride}
-                onChange={(e) => setCleanValueOverride(e.target.value)}
+                value={liveBid}
+                onChange={(e) => setLiveBid(e.target.value)}
               />
             </div>
           </div>
-        </div>
 
-        {isRealModel && (
-          <div className="mt-4 space-y-2">
-            <DesirabilityBadge make={vehicle.make} model={vehicle.model} />
-            {hybridPremium > 1 && (
-              <p className="text-xs text-steel">
-                Hybrid value premium applied (×{hybridPremium.toFixed(2)}).
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* 2. Damage */}
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold">2. Damage</h2>
-        <div className="mt-4">
-          <DamageSelector selections={damageSelections} onChange={setDamageSelections} />
-        </div>
-      </section>
-
-      {/* 3. Bid, fees, and shipping */}
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold">3. Bid, fees, and shipping</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg border border-steel/20 bg-white p-6 sm:grid-cols-2 lg:grid-cols-3">
-          <NumberField label="Bid amount" prefix="$" value={bid} onChange={setBid} step={100} />
-          <NumberField
-            label="Auction fee"
-            prefix="$"
-            value={auctionFeeAmt}
-            onChange={setAuctionFeeAmt}
-            step={25}
-            caption="Flat buyer fee — varies by bid amount. Use the listing's own fee calculator (e.g. Copart/IAAI)."
-          />
-          <NumberField
-            label="Documentation fee"
-            prefix="$"
-            value={documentationFee}
-            onChange={setDocumentationFee}
-            step={1}
-            caption="Tends to stay constant across listings."
-          />
-          <NumberField
-            label="Transaction fee"
-            prefix="$"
-            value={transactionFee}
-            onChange={setTransactionFee}
-            step={1}
-            caption="Varies by auction."
-          />
-          <NumberField label="Shipping" prefix="$" value={shipping} onChange={setShipping} step={25} />
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-steel">State (for tax rate)</label>
-            <select
-              className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-            >
-              <option value="">Select a state…</option>
-              {STATE_LABELS.map((code) => (
-                <option key={code} value={code}>
-                  {code} — {STATE_TAX_RATES[code]}%
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <NumberField
-            label="Title / BMV fees"
-            prefix="$"
-            value={titleFees}
-            onChange={setTitleFees}
-            step={10}
-          />
-          <NumberField
-            label="Rebuilt-title discount"
-            suffix="%"
-            value={rebuiltDiscountPct}
-            onChange={setRebuiltDiscountPct}
-            step={1}
-          />
-          <NumberField
-            label="Target % of clean value"
-            suffix="%"
-            value={targetPct}
-            onChange={setTargetPct}
-            step={1}
-          />
-        </div>
-      </section>
-
-      {/* Result */}
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold">Result</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <ResultCard label="All-in cost" value={`$${deal.totalCost.toLocaleString()}`} />
-          <ResultCard
-            label="% of clean value"
-            value={deal.pctOfClean !== null ? `${deal.pctOfClean}%` : '—'}
-          />
-          <ResultCard
-            label="Suggested max bid"
-            value={deal.suggestedMaxBid !== null ? `$${deal.suggestedMaxBid.toLocaleString()}` : '—'}
-          />
-          <ResultCard label="Estimated repair cost" value={`$${repairCost.toLocaleString()}`} />
-          <ResultCard
-            label="Projected resale value"
-            value={deal.resaleValue !== null ? `$${deal.resaleValue.toLocaleString()}` : '—'}
-          />
-          <ResultCard
-            label="Projected equity"
-            value={deal.equity !== null ? `$${deal.equity.toLocaleString()}` : '—'}
-            tone={deal.equity !== null ? (deal.equity >= 0 ? 'green' : 'red') : 'default'}
-          />
-        </div>
-
-        <div className="mt-6">
-          <VerdictBanner verdict={deal.verdict} />
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          {!showSaveForm && (
-            <button
-              type="button"
-              onClick={() => setShowSaveForm(true)}
-              className="rounded-md border border-steel/30 bg-white px-4 py-2 text-sm font-medium hover:bg-steel/5"
-            >
-              Save this deal
-            </button>
-          )}
-          {justSaved && <span className="text-sm font-medium text-moss">Saved ✓</span>}
-        </div>
-
-        {showSaveForm && (
-          <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-steel/20 bg-white p-4">
-            <div className="w-full sm:w-56">
-              <label className="mb-1 block text-sm font-medium text-steel">
-                Label (e.g. lot # or nickname)
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
-                value={saveLabel}
-                onChange={(e) => setSaveLabel(e.target.value)}
-              />
-            </div>
-            <div className="w-full sm:w-64">
-              <label className="mb-1 block text-sm font-medium text-steel">Listing URL</label>
-              <input
-                type="url"
-                placeholder="https://…"
-                className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
-                value={saveUrl}
-                onChange={(e) => setSaveUrl(e.target.value)}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleSaveConfirm}
-              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper"
-            >
-              Confirm
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowSaveForm(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-steel hover:bg-steel/5"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* Bid ceiling lock */}
-      <section className="mt-10">
-        <h2 className="font-display text-xl font-semibold">Bid ceiling lock</h2>
-        <p className="mt-1 text-sm text-steel">
-          For use during a live auction: lock in a hard max, then track the auction&apos;s current
-          bid against it.
-        </p>
-
-        {lockedMax === null ? (
-          <div className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-steel/20 bg-white p-4">
-            <div className="w-40">
-              <label className="mb-1 block text-sm font-medium text-steel">Max bid to lock</label>
-              <div className="flex items-center rounded-md border border-steel/30 bg-white px-3">
-                <span className="text-steel">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="50"
-                  className="w-full bg-transparent py-2 outline-none"
-                  value={displayedMaxBidInput}
-                  onChange={(e) => setMaxBidInput(e.target.value)}
-                />
+          {roomLeft !== null &&
+            (roomLeft > 0 ? (
+              <div className="font-mono-num text-lg font-semibold text-moss">
+                ${roomLeft.toLocaleString()} of room left
               </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleLock}
-              disabled={!displayedMaxBidInput}
-              className="rounded-md bg-rust px-4 py-2 font-medium text-paper transition-opacity disabled:opacity-40"
-            >
-              Lock this as my max
-            </button>
-          </div>
-        ) : (
-          <div className="sticky top-4 z-20 mt-4 rounded-lg border-4 border-rust bg-rust/10 p-5 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="font-display text-2xl font-bold text-rust">
-                Your max: ${lockedMax.toLocaleString()} — do not bid above this
-              </div>
-              <button
-                type="button"
-                onClick={handleUnlock}
-                className="rounded-md border border-rust px-3 py-1.5 text-sm font-medium text-rust hover:bg-rust/10"
-              >
-                Unlock / reset
-              </button>
-            </div>
+            ) : (
+              <div className="font-display text-lg font-bold text-rust">STOP — at or over your max</div>
+            ))}
+        </div>
+      </div>
+    );
 
-            <div className="mt-4 flex flex-wrap items-end gap-4">
-              <div className="w-48">
-                <label className="mb-1 block text-sm font-medium text-steel">Current live bid</label>
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold">Deal calculator</h1>
+          <p className="mt-2 text-steel">
+            Work through the vehicle, the damage, and the bid to see the full all-in picture.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAuctionMode((v) => !v)}
+          className={`rounded-md px-4 py-2 text-sm font-medium ${
+            auctionMode ? 'bg-ink text-paper' : 'border border-steel/30 bg-white text-ink hover:bg-steel/5'
+          }`}
+        >
+          {auctionMode ? '← Exit auction mode' : 'Auction mode'}
+        </button>
+      </div>
+
+      {auctionMode ? (
+        <section className="mt-8">
+          <p className="text-sm text-steel">
+            Compact view for glancing mid-bid. Everything else is still set from before.
+          </p>
+          <div className="mt-4 rounded-lg border border-steel/20 bg-white p-6 text-center">
+            <p className="text-lg text-steel">
+              {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle not set'}
+            </p>
+            <p className="font-mono-num mt-2 text-4xl font-bold">
+              {deal.suggestedMaxBid !== null ? `$${deal.suggestedMaxBid.toLocaleString()}` : '—'}
+            </p>
+            <p className="text-sm text-steel">Suggested max bid</p>
+          </div>
+          {bidCeilingLockUI}
+        </section>
+      ) : (
+        <>
+          {/* 1. Vehicle */}
+          <section className="mt-8">
+            <h2 className="font-display text-xl font-semibold">1. Vehicle</h2>
+            <div className="mt-4 rounded-lg border border-steel/20 bg-white p-6">
+              <VehicleSelector value={vehicle} onChange={setVehicle} />
+
+              <div className="mt-4 max-w-xs">
+                <label className="mb-1 block text-sm font-medium text-steel">
+                  Clean value override (optional)
+                </label>
                 <div className="flex items-center rounded-md border border-steel/30 bg-white px-3">
                   <span className="text-steel">$</span>
                   <input
                     type="number"
                     min="0"
-                    step="50"
-                    placeholder="0"
+                    step="500"
+                    placeholder={autoCleanValue !== null ? String(autoCleanValue) : ''}
                     className="w-full bg-transparent py-2 outline-none"
-                    value={liveBid}
-                    onChange={(e) => setLiveBid(e.target.value)}
+                    value={cleanValueOverride}
+                    onChange={(e) => setCleanValueOverride(e.target.value)}
                   />
                 </div>
               </div>
-
-              {roomLeft !== null &&
-                (roomLeft > 0 ? (
-                  <div className="font-mono-num text-lg font-semibold text-moss">
-                    ${roomLeft.toLocaleString()} of room left
-                  </div>
-                ) : (
-                  <div className="font-display text-lg font-bold text-rust">
-                    STOP — at or over your max
-                  </div>
-                ))}
             </div>
-          </div>
-        )}
-      </section>
+
+            {isRealModel && (
+              <div className="mt-4 space-y-2">
+                <DesirabilityBadge make={vehicle.make} model={vehicle.model} />
+                {hybridPremium > 1 && (
+                  <p className="text-xs text-steel">
+                    Hybrid value premium applied (×{hybridPremium.toFixed(2)}).
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* 2. Damage */}
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold">2. Damage</h2>
+            <div className="mt-4">
+              <DamageSelector selections={damageSelections} onChange={setDamageSelections} />
+            </div>
+          </section>
+
+          {/* 3. Bid, fees, and shipping */}
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold">3. Bid, fees, and shipping</h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg border border-steel/20 bg-white p-6 sm:grid-cols-2 lg:grid-cols-3">
+              <NumberField label="Bid amount" prefix="$" value={bid} onChange={setBid} step={100} />
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-steel">Auction house</label>
+                <select
+                  className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                  value={auctionHouse}
+                  onChange={(e) => setAuctionHouse(e.target.value)}
+                >
+                  <option value="">Not specified</option>
+                  {AUCTION_HOUSES.map((house) => (
+                    <option key={house} value={house}>
+                      {house}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-steel">Auction fee</label>
+                <div className="flex items-center rounded-md border border-steel/30 bg-white px-3">
+                  <span className="text-steel">$</span>
+                  <input
+                    type="number"
+                    step={25}
+                    min={0}
+                    className="w-full bg-transparent py-2 outline-none"
+                    value={auctionFeeAmt}
+                    onChange={(e) => setAuctionFeeAmt(Number(e.target.value))}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-steel">
+                  Flat buyer fee — varies by bid amount.{' '}
+                  <a
+                    href={`https://www.google.com/search?q=${encodeURIComponent(
+                      `${auctionHouse || 'Copart IAAI'} buyer fee schedule`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-teal underline underline-offset-2"
+                  >
+                    Look up current fees →
+                  </a>
+                </p>
+              </div>
+
+              <NumberField
+                label="Documentation fee"
+                prefix="$"
+                value={documentationFee}
+                onChange={setDocumentationFee}
+                step={1}
+                caption="Tends to stay constant across listings."
+              />
+              <NumberField
+                label="Transaction fee"
+                prefix="$"
+                value={transactionFee}
+                onChange={setTransactionFee}
+                step={1}
+                caption="Varies by auction."
+              />
+              <NumberField label="Shipping" prefix="$" value={shipping} onChange={setShipping} step={25} />
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-steel">State (for tax rate)</label>
+                <select
+                  className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                >
+                  <option value="">Select a state…</option>
+                  {STATE_LABELS.map((code) => (
+                    <option key={code} value={code}>
+                      {code} — {STATE_TAX_RATES[code]}%
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <NumberField
+                label="Title / BMV fees"
+                prefix="$"
+                value={titleFees}
+                onChange={setTitleFees}
+                step={10}
+              />
+              <NumberField
+                label="Rebuilt-title discount"
+                suffix="%"
+                value={rebuiltDiscountPct}
+                onChange={setRebuiltDiscountPct}
+                step={1}
+              />
+              <NumberField
+                label="Target % of clean value"
+                suffix="%"
+                value={targetPct}
+                onChange={setTargetPct}
+                step={1}
+              />
+            </div>
+          </section>
+
+          {/* Result */}
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold">Result</h2>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <ResultCard label="All-in cost" value={`$${deal.totalCost.toLocaleString()}`} />
+              <ResultCard
+                label="% of clean value"
+                value={deal.pctOfClean !== null ? `${deal.pctOfClean}%` : '—'}
+              />
+              <ResultCard
+                label="Suggested max bid"
+                value={deal.suggestedMaxBid !== null ? `$${deal.suggestedMaxBid.toLocaleString()}` : '—'}
+              />
+              <ResultCard label="Estimated repair cost" value={`$${repairCost.toLocaleString()}`} />
+              <ResultCard
+                label="Projected resale value"
+                value={deal.resaleValue !== null ? `$${deal.resaleValue.toLocaleString()}` : '—'}
+              />
+              <ResultCard
+                label="Projected equity"
+                value={deal.equity !== null ? `$${deal.equity.toLocaleString()}` : '—'}
+                tone={deal.equity !== null ? (deal.equity >= 0 ? 'green' : 'red') : 'default'}
+              />
+            </div>
+
+            <div className="mt-6">
+              <VerdictBanner verdict={deal.verdict} />
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {!showSaveForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowSaveForm(true)}
+                  className="rounded-md border border-steel/30 bg-white px-4 py-2 text-sm font-medium hover:bg-steel/5"
+                >
+                  Save this deal
+                </button>
+              )}
+              {justSaved && <span className="text-sm font-medium text-moss">Saved ✓</span>}
+            </div>
+
+            {showSaveForm && (
+              <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-steel/20 bg-white p-4">
+                <div className="w-full sm:w-56">
+                  <label className="mb-1 block text-sm font-medium text-steel">
+                    Label (e.g. lot # or nickname)
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                    value={saveLabel}
+                    onChange={(e) => setSaveLabel(e.target.value)}
+                  />
+                </div>
+                <div className="w-full sm:w-64">
+                  <label className="mb-1 block text-sm font-medium text-steel">Listing URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://…"
+                    className="w-full rounded-md border border-steel/30 bg-white px-3 py-2"
+                    value={saveUrl}
+                    onChange={(e) => setSaveUrl(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveConfirm}
+                  className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-paper"
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSaveForm(false)}
+                  className="rounded-md px-3 py-2 text-sm font-medium text-steel hover:bg-steel/5"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Bid ceiling lock */}
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold">Bid ceiling lock</h2>
+            <p className="mt-1 text-sm text-steel">
+              For use during a live auction: lock in a hard max, then track the auction&apos;s
+              current bid against it.
+            </p>
+            {bidCeilingLockUI}
+          </section>
+        </>
+      )}
     </div>
   );
 }

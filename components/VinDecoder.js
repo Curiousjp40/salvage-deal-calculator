@@ -62,9 +62,19 @@ export default function VinDecoder({ onDecode }) {
 
       {status === 'success' && info && (
         <div className="mt-3 rounded-md bg-white p-3 text-sm">
-          <p className="font-medium text-moss">
-            Decoded: {info.year || '—'} {info.make} {info.model}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium text-moss">
+              Decoded: {info.year || '—'} {info.make} {info.model}
+            </p>
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(`VIN ${vin.trim().toUpperCase()} title history NMVTIS check`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-teal underline underline-offset-2"
+            >
+              Check title/history →
+            </a>
+          </div>
           {message && <p className="mt-1 text-xs text-amber-700">{message}</p>}
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-steel sm:grid-cols-3">
             {info.trim && (

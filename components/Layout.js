@@ -14,7 +14,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-paper text-ink">
-      <header className="bg-ink text-paper">
+      <header className="bg-ink text-paper print:hidden">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-display text-lg font-bold tracking-tight">
             Salvage Deal Calculator
@@ -43,7 +43,7 @@ export default function Layout({ children }) {
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">{children}</main>
 
-      <footer className="border-t border-steel/20 bg-paper">
+      <footer className="border-t border-steel/20 bg-paper print:hidden">
         <div className="mx-auto max-w-5xl px-6 py-6 text-sm text-steel">
           All figures on this site are rough estimates for planning purposes only — not
           appraisals, quotes, or guarantees. Always cross-check vehicle values, confirm repair

@@ -7,15 +7,19 @@ A small toolkit for sizing up salvage and rebuildable-title vehicle auction list
   tax, shipping, and title costs rolled into an all-in cost, a suggested max bid, and a
   green/teal/amber/red verdict on the deal. Includes a **bid ceiling lock** for use
   during a live auction — lock in a hard max bid, then track the auction's current bid
-  against it with a room-left/stop warning.
+  against it with a room-left/stop warning — and an **auction mode** toggle that swaps
+  the whole page for just that lock plus the suggested max, for glancing at mid-bid.
 - **Value estimator** (`/value`) — a standalone clean-title value estimate from year,
   make/model, mileage, and trim.
-
-Both the deal calculator and the value estimator can **decode a VIN** to fill in year,
-make, and model automatically, via NHTSA's free public vPIC VIN decoder — see
-"VIN decoding" below.
 - **Repair cost** (`/damage`) — a standalone repair-cost rollup across common salvage
   damage categories and severities.
+- **Saved deals** (`/saved`) — deals saved from the calculator, stored locally in your
+  browser. Check two or more to compare them side by side, export everything to a JSON
+  file (and import it back later, e.g. on another device), or print the page.
+
+Both the deal calculator and the value estimator can **decode a VIN** to fill in year,
+make, model, and a best-guess trim automatically, via NHTSA's free public vPIC VIN
+decoder — see "VIN decoding" below.
 
 ## How the estimates work (and their limits)
 
@@ -44,7 +48,10 @@ quote, or a guarantee:
   and equity, and a verdict tier. The auction fee is a flat dollar amount rather than a
   percentage of the bid — real auctions like Copart/IAAI charge tiered flat buyer fees
   by bid range, not a clean percentage, so pull the actual figure from the listing's own
-  fee calculator.
+  fee calculator. Picking an auction house next to it changes the "Look up current
+  fees" link to a search for that auction's own published schedule — this app
+  deliberately doesn't hardcode Copart/IAAI's dollar figures, since those tables change
+  and a wrong number in a real bidding tool is worse than an honest link to the source.
 
 **Before you actually bid:** cross-check the vehicle's value on KBB or Edmunds (the
 value estimator links out to a KBB search for you), get a real repair estimate from a
@@ -73,9 +80,28 @@ from NHTSA's response into this app's fields:
   base). An ambiguous or unrecognized trim name (XLT, SE, Sport, ...) is left alone
   rather than guessed, so it keeps whatever the form already had.
 - Mileage is never touched — it isn't part of a VIN.
+- A "Check title/history" link next to the decoded result opens a search for that VIN's
+  title/branding history (theft, flood, odometer rollback) — vPIC doesn't carry that
+  data, so this points you at NMVTIS-style checkers rather than guessing.
 
 A VIN decode is exactly as reliable as NHTSA's data for that vehicle; always sanity
 check the result against the actual listing.
+
+## Saved deals
+
+`/saved` reads and writes `lib/savedDeals.js`, which is a thin wrapper around
+`localStorage` under the key `salvage-calculator-saved-deals` — nothing leaves your
+browser. A few things follow from that:
+
+- Saved deals don't sync across browsers or devices. **Export JSON** downloads
+  everything as a file; **Import JSON** merges a previously exported file back in,
+  skipping any deal whose id is already present so re-importing the same file twice
+  doesn't duplicate entries.
+- **Print** uses the browser's print dialog with a print-only layout (Tailwind's
+  `print:` variant) that drops the nav, footer, and per-card controls.
+- Checking two or more saved deals renders a side-by-side comparison table below the
+  list (all-in cost, suggested max bid, % of clean value, repair cost, resale value,
+  equity, verdict).
 
 ## Local development
 
